@@ -1,33 +1,8 @@
 package net.querz.mcaselector.ui;
 
-import javafx.application.Platform;
-import javafx.scene.control.ButtonType;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
-import net.querz.mcaselector.Config;
-import net.querz.mcaselector.io.*;
-import net.querz.mcaselector.tiles.Selection;
-import net.querz.mcaselector.tiles.TileMap;
-import net.querz.mcaselector.property.DataProperty;
-import net.querz.mcaselector.debug.Debug;
-import net.querz.mcaselector.point.Point2i;
-import net.querz.mcaselector.text.Translation;
-import net.querz.mcaselector.tiles.TileMapSelection;
-import net.querz.mcaselector.ui.dialog.AboutDialog;
-import net.querz.mcaselector.ui.dialog.CancellableProgressDialog;
-import net.querz.mcaselector.ui.dialog.ChangeFieldsConfirmationDialog;
-import net.querz.mcaselector.ui.dialog.ChangeNBTDialog;
-import net.querz.mcaselector.ui.dialog.DeleteConfirmationDialog;
-import net.querz.mcaselector.ui.dialog.ExportConfirmationDialog;
-import net.querz.mcaselector.ui.dialog.FilterChunksDialog;
-import net.querz.mcaselector.ui.dialog.GotoDialog;
-import net.querz.mcaselector.ui.dialog.ImportConfirmationDialog;
-import net.querz.mcaselector.ui.dialog.NBTEditorDialog;
-import net.querz.mcaselector.ui.dialog.ProgressDialog;
-import net.querz.mcaselector.ui.dialog.SettingsDialog;
+import static net.querz.mcaselector.ui.dialog.ImportConfirmationDialog.ChunkImportConfirmationData;
 
-import java.awt.*;
+import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -41,7 +16,44 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import static net.querz.mcaselector.ui.dialog.ImportConfirmationDialog.ChunkImportConfirmationData;
+import javafx.application.Platform;
+import javafx.scene.control.ButtonType;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+import net.querz.mcaselector.Config;
+import net.querz.mcaselector.debug.Debug;
+import net.querz.mcaselector.io.CacheHelper;
+import net.querz.mcaselector.io.ChunkFilterDeleter;
+import net.querz.mcaselector.io.ChunkFilterExporter;
+import net.querz.mcaselector.io.ChunkFilterSelector;
+import net.querz.mcaselector.io.ChunkImporter;
+import net.querz.mcaselector.io.FieldChanger;
+import net.querz.mcaselector.io.FileHelper;
+import net.querz.mcaselector.io.MCAChunkData;
+import net.querz.mcaselector.io.MCAFile;
+import net.querz.mcaselector.io.MCAFilePipe;
+import net.querz.mcaselector.io.SelectionDeleter;
+import net.querz.mcaselector.io.SelectionExporter;
+import net.querz.mcaselector.io.SelectionHelper;
+import net.querz.mcaselector.point.Point2i;
+import net.querz.mcaselector.property.DataProperty;
+import net.querz.mcaselector.text.Translation;
+import net.querz.mcaselector.tiles.Selection;
+import net.querz.mcaselector.tiles.TileMap;
+import net.querz.mcaselector.tiles.TileMapSelection;
+import net.querz.mcaselector.ui.dialog.AboutDialog;
+import net.querz.mcaselector.ui.dialog.CancellableProgressDialog;
+import net.querz.mcaselector.ui.dialog.ChangeFieldsConfirmationDialog;
+import net.querz.mcaselector.ui.dialog.ChangeNBTDialog;
+import net.querz.mcaselector.ui.dialog.DeleteConfirmationDialog;
+import net.querz.mcaselector.ui.dialog.ExportConfirmationDialog;
+import net.querz.mcaselector.ui.dialog.FilterChunksDialog;
+import net.querz.mcaselector.ui.dialog.GotoDialog;
+import net.querz.mcaselector.ui.dialog.ImportConfirmationDialog;
+import net.querz.mcaselector.ui.dialog.NBTEditorDialog;
+import net.querz.mcaselector.ui.dialog.ProgressDialog;
+import net.querz.mcaselector.ui.dialog.SettingsDialog;
 
 public class DialogHelper {
 
@@ -211,6 +223,8 @@ public class DialogHelper {
 				Locale.setDefault(Config.getLocale());
 				Translation.load(Config.getLocale());
 			}
+
+			Config.setDefaultChunkCompressionType(r.getChunkCompressionType());
 			Config.setRegionSelectionColor(new Color(r.getRegionColor()));
 			Config.setChunkSelectionColor(new Color(r.getChunkColor()));
 			Config.setPasteChunksColor(new Color(r.getPasteColor()));

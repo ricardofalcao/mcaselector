@@ -1,5 +1,22 @@
 package net.querz.mcaselector.io;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.List;
+import java.util.Random;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+import java.util.zip.InflaterInputStream;
+import net.jpountz.lz4.LZ4BlockInputStream;
+import net.jpountz.lz4.LZ4BlockOutputStream;
+import net.querz.mcaselector.Config;
 import net.querz.mcaselector.changer.Field;
 import net.querz.mcaselector.debug.Debug;
 import net.querz.mcaselector.point.Point2i;
@@ -9,210 +26,230 @@ import net.querz.nbt.io.NBTDeserializer;
 import net.querz.nbt.io.NBTSerializer;
 import net.querz.nbt.io.NamedTag;
 import net.querz.nbt.tag.CompoundTag;
-import java.io.*;
-import java.util.List;
-import java.util.Random;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
-import java.util.zip.InflaterInputStream;
 
 public class MCAChunkData {
 
-	private final long offset; //in actual bytes
-	private final int timestamp;
-	private final byte sectors;
-	private int length; //length without padding
-	private CompressionType compressionType;
-	private CompoundTag data;
+    /*
 
-	private final Point2i absoluteLocation;
+     */
 
-	private static final Random random = new Random();
+    // Paper start - new & optimized compression
+    public static final net.jpountz.lz4.LZ4FastDecompressor lz4Decompressor = net.jpountz.lz4.LZ4Factory.fastestJavaInstance()
+        .fastDecompressor();
+    public static final net.jpountz.lz4.LZ4Compressor lz4Compressor = net.jpountz.lz4.LZ4Factory.fastestJavaInstance().fastCompressor();
+    // Paper end
 
-	@Override
-	public String toString() {
-		return  "offset=" + offset +
-				"\ntimestamp=" + timestamp +
-				"\nsectors=" + sectors +
-				"\nlength=" + length +
-				"\ncompressionType=" + compressionType +
-				"\ndata=" + data +
-				"\nabsoluteLocation=" + absoluteLocation;
-	}
+    /*
 
-	//offset in 4KiB chunks
-	public MCAChunkData(Point2i absoluteLocation, int offset, int timestamp, byte sectors) {
-		this.absoluteLocation = absoluteLocation;
-		this.offset = ((long) offset) * MCAFile.SECTION_SIZE;
-		this.timestamp = timestamp;
-		this.sectors = sectors;
-	}
+     */
 
-	static MCAChunkData newEmptyLevelMCAChunkData(Point2i absoluteLocation, int dataVersion) {
-		MCAChunkData mcaChunkData = new MCAChunkData(absoluteLocation, 0, 0, (byte) 1);
-		CompoundTag root = new CompoundTag();
-		CompoundTag level = new CompoundTag();
-		level.putInt("xPos", absoluteLocation.getX());
-		level.putInt("zPos", absoluteLocation.getZ());
-		level.putString("Status", "full");
-		root.put("Level", level);
-		root.putInt("DataVersion", dataVersion);
-		mcaChunkData.data = root;
-		mcaChunkData.compressionType = CompressionType.ZLIB;
-		return mcaChunkData;
-	}
+    private final long offset; //in actual bytes
+    private final int timestamp;
+    private final byte sectors;
+    private int length; //length without padding
+    private CompressionType compressionType;
+    private CompoundTag data;
 
-	public boolean isEmpty() {
-		return offset == 0 && timestamp == 0 && sectors == 0 || data == null;
-	}
+    private final Point2i absoluteLocation;
 
-	public void readHeader(ByteArrayPointer ptr) {
-		ptr.seek(offset);
-		length = ptr.readInt();
-		compressionType = CompressionType.fromByte(ptr.readByte());
-	}
+    private static final Random random = new Random();
 
-	public void readHeader(RandomAccessFile raf) throws IOException {
-		raf.seek(offset);
-		length = raf.readInt();
-		compressionType = CompressionType.fromByte(raf.readByte());
-	}
+    @Override
+    public String toString() {
+        return "offset=" + offset +
+            "\ntimestamp=" + timestamp +
+            "\nsectors=" + sectors +
+            "\nlength=" + length +
+            "\ncompressionType=" + compressionType +
+            "\ndata=" + data +
+            "\nabsoluteLocation=" + absoluteLocation;
+    }
 
-	public void loadData(ByteArrayPointer ptr) throws Exception {
-		//offset + length of length (4 bytes) + length of compression type (1 byte)
-		ptr.seek(offset + 5);
-		DataInputStream nbtIn = null;
+    //offset in 4KiB chunks
+    public MCAChunkData(Point2i absoluteLocation, int offset, int timestamp, byte sectors) {
+        this.absoluteLocation = absoluteLocation;
+        this.offset = ((long) offset) * MCAFile.SECTION_SIZE;
+        this.timestamp = timestamp;
+        this.sectors = sectors;
+    }
 
-		switch (compressionType) {
-		case GZIP:
-			nbtIn = new DataInputStream(new BufferedInputStream(new GZIPInputStream(ptr)));
-			break;
-		case ZLIB:
-			nbtIn = new DataInputStream(new BufferedInputStream(new InflaterInputStream(ptr)));
-			break;
-		case NONE:
-			data = null;
-			return;
-		}
-		NamedTag tag = new NBTDeserializer(false).fromStream(nbtIn);
+    static MCAChunkData newEmptyLevelMCAChunkData(Point2i absoluteLocation, int dataVersion) {
+        MCAChunkData mcaChunkData = new MCAChunkData(absoluteLocation, 0, 0, (byte) 1);
+        CompoundTag root = new CompoundTag();
+        CompoundTag level = new CompoundTag();
+        level.putInt("xPos", absoluteLocation.getX());
+        level.putInt("zPos", absoluteLocation.getZ());
+        level.putString("Status", "full");
+        root.put("Level", level);
+        root.putInt("DataVersion", dataVersion);
+        mcaChunkData.data = root;
+        mcaChunkData.compressionType = Config.getDefaultChunkCompressionType();
+        return mcaChunkData;
+    }
 
-		if (tag.getTag() instanceof CompoundTag) {
-			data = (CompoundTag) tag.getTag();
-		} else {
-			throw new Exception("Invalid chunk data: tag is not of type CompoundTag");
-		}
-	}
+    public boolean isEmpty() {
+        return offset == 0 && timestamp == 0 && sectors == 0 || data == null;
+    }
 
-	public void loadData(RandomAccessFile raf) throws IOException {
-		raf.seek(offset + 5);
-		DataInputStream nbtIn = null;
+    public void readHeader(ByteArrayPointer ptr) {
+        ptr.seek(offset);
+        length = ptr.readInt();
+        compressionType = CompressionType.fromByte(ptr.readByte());
+    }
 
-		switch (compressionType) {
-			case GZIP:
-				nbtIn = new DataInputStream(new BufferedInputStream(new GZIPInputStream(new FileInputStream(raf.getFD()))));
-				break;
-			case ZLIB:
-				nbtIn = new DataInputStream(new BufferedInputStream(new InflaterInputStream(new FileInputStream(raf.getFD()))));
-				break;
-			case NONE:
-				data = null;
-				return;
-		}
+    public void readHeader(RandomAccessFile raf) throws IOException {
+        raf.seek(offset);
+        length = raf.readInt();
+        compressionType = CompressionType.fromByte(raf.readByte());
+    }
 
-		NamedTag tag = new NBTDeserializer(false).fromStream(nbtIn);
+    public void loadData(ByteArrayPointer ptr) throws Exception {
+        //offset + length of length (4 bytes) + length of compression type (1 byte)
+        ptr.seek(offset + 5);
+        DataInputStream nbtIn = null;
 
-		if (tag.getTag() instanceof CompoundTag) {
-			data = (CompoundTag) tag.getTag();
-		} else {
-			throw new IOException("Invalid chunk data: tag is not of type CompoundTag");
-		}
-	}
+        switch (compressionType) {
+            case GZIP:
+                nbtIn = new DataInputStream(new BufferedInputStream(new GZIPInputStream(ptr)));
+                break;
+            case ZLIB:
+                nbtIn = new DataInputStream(new BufferedInputStream(new InflaterInputStream(ptr)));
+                break;
+            case LZ4:
+                nbtIn = new DataInputStream(new BufferedInputStream(new LZ4BlockInputStream(ptr, MCAChunkData.lz4Decompressor)));
+                break;
+            case NONE:
+                data = null;
+                return;
+        }
+        NamedTag tag = new NBTDeserializer(false).fromStream(nbtIn);
 
-	//saves to offset provided by raf, because it might be different when data changed
-	//returns the number of bytes that were written to the file
-	public int saveData(RandomAccessFile raf) throws Exception {
-		DataOutputStream nbtOut;
+        if (tag.getTag() instanceof CompoundTag) {
+            data = (CompoundTag) tag.getTag();
+        } else {
+            throw new Exception("Invalid chunk data: tag is not of type CompoundTag");
+        }
+    }
 
-		ByteArrayOutputStream baos;
+    public void loadData(RandomAccessFile raf) throws IOException {
+        raf.seek(offset + 5);
+        DataInputStream nbtIn = null;
 
-		switch (compressionType) {
-		case GZIP:
-			nbtOut = new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(baos = new ByteArrayOutputStream()), sectors * MCAFile.SECTION_SIZE));
-			break;
-		case ZLIB:
-			nbtOut = new DataOutputStream(new BufferedOutputStream(new DeflaterOutputStream(baos = new ByteArrayOutputStream()), sectors * MCAFile.SECTION_SIZE));
-			break;
-		default:
-			return 0;
-		}
+        switch (compressionType) {
+            case GZIP:
+                nbtIn = new DataInputStream(new BufferedInputStream(new GZIPInputStream(new FileInputStream(raf.getFD()))));
+                break;
+            case ZLIB:
+                nbtIn = new DataInputStream(new BufferedInputStream(new InflaterInputStream(new FileInputStream(raf.getFD()))));
+                break;
+            case LZ4:
+                nbtIn = new DataInputStream(
+                    new BufferedInputStream(new LZ4BlockInputStream(new FileInputStream(raf.getFD()), MCAChunkData.lz4Decompressor)));
+                break;
+            case NONE:
+                data = null;
+                return;
+        }
 
-		new NBTSerializer(false).toStream(new NamedTag(null, data), nbtOut);
+        NamedTag tag = new NBTDeserializer(false).fromStream(nbtIn);
 
-		nbtOut.close();
+        if (tag.getTag() instanceof CompoundTag) {
+            data = (CompoundTag) tag.getTag();
+        } else {
+            throw new IOException("Invalid chunk data: tag is not of type CompoundTag");
+        }
+    }
 
-		byte[] rawData = baos.toByteArray();
+    //saves to offset provided by raf, because it might be different when data changed
+    //returns the number of bytes that were written to the file
+    public int saveData(RandomAccessFile raf) throws Exception {
+        DataOutputStream nbtOut;
 
-		raf.writeInt(rawData.length + 1); // length includes the compression type byte
-		raf.writeByte(compressionType.getByte());
-		raf.write(rawData);
+        ByteArrayOutputStream baos;
 
-		return rawData.length + 5;
-	}
+        switch (compressionType) {
+            case GZIP:
+                nbtOut = new DataOutputStream(
+                    new BufferedOutputStream(new GZIPOutputStream(baos = new ByteArrayOutputStream()), sectors * MCAFile.SECTION_SIZE));
+                break;
+            case ZLIB:
+                nbtOut = new DataOutputStream(
+                    new BufferedOutputStream(new DeflaterOutputStream(baos = new ByteArrayOutputStream()), sectors * MCAFile.SECTION_SIZE));
+                break;
+            case LZ4:
+                nbtOut = new DataOutputStream(
+                    new BufferedOutputStream(new LZ4BlockOutputStream(baos = new ByteArrayOutputStream(), 1 << 16, lz4Compressor), sectors * MCAFile.SECTION_SIZE));
+                break;
+            default:
+                return 0;
+        }
 
-	public void changeData(List<Field<?>> fields, boolean force) {
-		for (Field<?> field : fields) {
-			try {
-				if (force) {
-					field.force(data);
-				} else {
-					field.change(data);
-				}
-			} catch (Exception ex) {
-				Debug.dumpf("failed to change field %s in chunk %s: %s", field.getType(), absoluteLocation, ex);
-			}
-		}
-	}
+        new NBTSerializer(false).toStream(new NamedTag(null, data), nbtOut);
 
-	public long getOffset() {
-		return offset;
-	}
+        nbtOut.close();
 
-	public int getLength() {
-		return length;
-	}
+        byte[] rawData = baos.toByteArray();
 
-	public int getTimestamp() {
-		return timestamp;
-	}
+        raf.writeInt(rawData.length + 1); // length includes the compression type byte
+        raf.writeByte(compressionType.getByte());
+        raf.write(rawData);
 
-	public byte getSectors() {
-		return sectors;
-	}
+        return rawData.length + 5;
+    }
 
-	public CompressionType getCompressionType() {
-		return compressionType;
-	}
+    public void changeData(List<Field<?>> fields, boolean force) {
+        for (Field<?> field : fields) {
+            try {
+                if (force) {
+                    field.force(data);
+                } else {
+                    field.change(data);
+                }
+            } catch (Exception ex) {
+                Debug.dumpf("failed to change field %s in chunk %s: %s", field.getType(), absoluteLocation, ex);
+            }
+        }
+    }
 
-	public CompoundTag getData() {
-		return data;
-	}
+    public long getOffset() {
+        return offset;
+    }
 
-	public void setData(CompoundTag data) {
-		this.data = data;
-	}
+    public int getLength() {
+        return length;
+    }
 
-	public void setCompressionType(CompressionType compressionType) {
-		this.compressionType = compressionType;
-	}
+    public int getTimestamp() {
+        return timestamp;
+    }
 
-	public Point2i getAbsoluteLocation() {
-		return absoluteLocation;
-	}
+    public byte getSectors() {
+        return sectors;
+    }
 
-	// offset is in blocks
-	public boolean relocate(Point2i offset) {
-		ChunkRelocator r = VersionController.getChunkRelocator(data.getInt("DataVersion"));
-		return r.relocateChunk(data, offset);
-	}
+    public CompressionType getCompressionType() {
+        return compressionType;
+    }
+
+    public CompoundTag getData() {
+        return data;
+    }
+
+    public void setData(CompoundTag data) {
+        this.data = data;
+    }
+
+    public void setCompressionType(CompressionType compressionType) {
+        this.compressionType = compressionType;
+    }
+
+    public Point2i getAbsoluteLocation() {
+        return absoluteLocation;
+    }
+
+    // offset is in blocks
+    public boolean relocate(Point2i offset) {
+        ChunkRelocator r = VersionController.getChunkRelocator(data.getInt("DataVersion"));
+        return r.relocateChunk(data, offset);
+    }
 }

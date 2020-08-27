@@ -38,6 +38,7 @@ menu.tools.edit_nbt;Edit chunk
 menu.tools.swap_chunks;Swap chunks
 dialog.settings.title;Settings
 dialog.settings.language;Language
+dialog.settings.chunk_compression;Chunk Compression
 dialog.settings.read_threads;Read Threads
 dialog.settings.process_threads;Process Threads
 dialog.settings.write_threads;Write Threads

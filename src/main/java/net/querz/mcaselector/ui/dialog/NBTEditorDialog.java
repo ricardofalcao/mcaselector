@@ -1,5 +1,15 @@
 package net.querz.mcaselector.ui.dialog;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -11,6 +21,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import net.querz.mcaselector.Config;
 import net.querz.mcaselector.debug.Debug;
 import net.querz.mcaselector.io.ByteArrayPointer;
 import net.querz.mcaselector.io.CompressionType;
@@ -24,17 +35,20 @@ import net.querz.mcaselector.tiles.Tile;
 import net.querz.mcaselector.tiles.TileMap;
 import net.querz.mcaselector.ui.NBTTreeView;
 import net.querz.mcaselector.ui.UIFactory;
-import net.querz.nbt.tag.*;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
+import net.querz.nbt.tag.ByteArrayTag;
+import net.querz.nbt.tag.ByteTag;
+import net.querz.nbt.tag.CompoundTag;
+import net.querz.nbt.tag.DoubleTag;
+import net.querz.nbt.tag.EndTag;
+import net.querz.nbt.tag.FloatTag;
+import net.querz.nbt.tag.IntArrayTag;
+import net.querz.nbt.tag.IntTag;
+import net.querz.nbt.tag.ListTag;
+import net.querz.nbt.tag.LongArrayTag;
+import net.querz.nbt.tag.LongTag;
+import net.querz.nbt.tag.ShortTag;
+import net.querz.nbt.tag.StringTag;
+import net.querz.nbt.tag.Tag;
 
 public class NBTEditorDialog extends Dialog<NBTEditorDialog.Result> {
 
@@ -200,7 +214,7 @@ public class NBTEditorDialog extends Dialog<NBTEditorDialog.Result> {
 
 		MCAChunkData chunkData = dest.getChunkData(index);
 		chunkData.setData(this.data);
-		chunkData.setCompressionType(CompressionType.ZLIB);
+		chunkData.setCompressionType(Config.getDefaultChunkCompressionType());
 		dest.setChunkData(index, chunkData);
 		dest.setTimeStamp(index, (int) (System.currentTimeMillis() / 1000));
 		try {

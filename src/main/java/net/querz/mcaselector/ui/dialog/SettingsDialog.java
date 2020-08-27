@@ -1,8 +1,19 @@
 package net.querz.mcaselector.ui.dialog;
 
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Slider;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
@@ -13,13 +24,9 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.StringConverter;
 import net.querz.mcaselector.Config;
+import net.querz.mcaselector.io.CompressionType;
 import net.querz.mcaselector.text.Translation;
 import net.querz.mcaselector.ui.UIFactory;
-
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
 
 public class SettingsDialog extends Dialog<SettingsDialog.Result> {
 
@@ -40,6 +47,8 @@ public class SettingsDialog extends Dialog<SettingsDialog.Result> {
 	private static final long maxMemory = Runtime.getRuntime().maxMemory();
 
 	private final ComboBox<Locale> languages = new ComboBox<>();
+
+	private final ComboBox<CompressionType> chunkCompressionTypes = new ComboBox<>();
 
 	private final Slider readThreadsSlider = createSlider(1, processorCount, 1, Config.getLoadThreads());
 	private final Slider processThreadsSlider = createSlider(1, processorCount * 2, 1, Config.getProcessThreads());
@@ -68,6 +77,7 @@ public class SettingsDialog extends Dialog<SettingsDialog.Result> {
 		getDialogPane().lookupButton(reset).addEventFilter(ActionEvent.ACTION, e -> {
 			e.consume();
 			languages.setValue(Config.DEFAULT_LOCALE);
+			chunkCompressionTypes.setValue(CompressionType.LZ4);
 			readThreadsSlider.setValue(Config.DEFAULT_LOAD_THREADS);
 			processThreadsSlider.setValue(Config.DEFAULT_PROCESS_THREADS);
 			writeThreadsSlider.setValue(Config.DEFAULT_WRITE_THREADS);
@@ -87,6 +97,7 @@ public class SettingsDialog extends Dialog<SettingsDialog.Result> {
 			if (c.getButtonData() == ButtonBar.ButtonData.OK_DONE) {
 				return new Result(
 						languages.getSelectionModel().getSelectedItem(),
+						chunkCompressionTypes.getSelectionModel().getSelectedItem(),
 						(int) readThreadsSlider.getValue(),
 						(int) processThreadsSlider.getValue(),
 						(int) writeThreadsSlider.getValue(),
@@ -121,6 +132,22 @@ public class SettingsDialog extends Dialog<SettingsDialog.Result> {
 			}
 		});
 		languages.getStyleClass().add("languages-combo-box");
+
+		chunkCompressionTypes.getItems().addAll(CompressionType.values());
+		chunkCompressionTypes.setValue(Config.getDefaultChunkCompressionType());
+		chunkCompressionTypes.setConverter(new StringConverter<CompressionType>() {
+
+			@Override
+			public String toString(CompressionType compressionType) {
+				return compressionType.name();
+			}
+
+			@Override
+			public CompressionType fromString(String string) {
+				return CompressionType.valueOf(string);
+			}
+		});
+		chunkCompressionTypes.getStyleClass().add("languages-combo-box");
 
 		regionSelectionColorPreview.getStyleClass().clear();
 		chunkSelectionColorPreview.getStyleClass().clear();
@@ -168,31 +195,33 @@ public class SettingsDialog extends Dialog<SettingsDialog.Result> {
 		GridPane grid = new GridPane();
 		grid.getStyleClass().add("slider-grid-pane");
 		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_LANGUAGE), 0, 0, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_READ_THREADS), 0, 1, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_PROCESS_THREADS), 0, 2, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_WRITE_THREADS), 0, 3, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_MAX_FILES), 0, 4, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_REGION_COLOR), 0, 5, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_CHUNK_COLOR), 0, 6, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_REGION_COLOR), 0, 7, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_SHADE), 0, 8, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_SHADE_WATER), 0, 9, 1, 1);
-		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_PRINT_DEBUG), 0, 10, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_CHUNK_COMPRESSION), 0, 0, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_READ_THREADS), 0, 2, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_PROCESS_THREADS), 0, 3, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_WRITE_THREADS), 0, 4, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_MAX_FILES), 0, 5, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_REGION_COLOR), 0, 6, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_CHUNK_COLOR), 0, 7, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_REGION_COLOR), 0, 8, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_SHADE), 0, 9, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_SHADE_WATER), 0, 10, 1, 1);
+		grid.add(UIFactory.label(Translation.DIALOG_SETTINGS_PRINT_DEBUG), 0, 11, 1, 1);
 		grid.add(languages, 1, 0, 2, 1);
-		grid.add(readThreadsSlider, 1, 1, 1, 1);
-		grid.add(processThreadsSlider, 1, 2, 1, 1);
-		grid.add(writeThreadsSlider, 1, 3, 1, 1);
-		grid.add(maxLoadedFilesSlider, 1, 4, 1, 1);
-		grid.add(regionSelectionColorPreview, 1, 5, 2, 1);
-		grid.add(chunkSelectionColorPreview, 1, 6, 2, 1);
-		grid.add(pasteChunksColorPreview, 1, 7, 2, 1);
-		grid.add(shadeCheckBox, 1, 8, 2, 1);
-		grid.add(shadeWaterCheckBox, 1, 9, 2, 1);
-		grid.add(debugBox, 1, 10, 2, 1);
-		grid.add(UIFactory.attachTextFieldToSlider(readThreadsSlider), 2, 1, 1, 1);
-		grid.add(UIFactory.attachTextFieldToSlider(processThreadsSlider), 2, 2, 1, 1);
-		grid.add(UIFactory.attachTextFieldToSlider(writeThreadsSlider), 2, 3, 1, 1);
-		grid.add(UIFactory.attachTextFieldToSlider(maxLoadedFilesSlider), 2, 4, 1, 1);
+		grid.add(chunkCompressionTypes, 1, 1, 2, 1);
+		grid.add(readThreadsSlider, 1, 2, 1, 1);
+		grid.add(processThreadsSlider, 1, 3, 1, 1);
+		grid.add(writeThreadsSlider, 1, 4, 1, 1);
+		grid.add(maxLoadedFilesSlider, 1, 5, 1, 1);
+		grid.add(regionSelectionColorPreview, 1, 6, 2, 1);
+		grid.add(chunkSelectionColorPreview, 1, 7, 2, 1);
+		grid.add(pasteChunksColorPreview, 1, 8, 2, 1);
+		grid.add(shadeCheckBox, 1, 9, 2, 1);
+		grid.add(shadeWaterCheckBox, 1, 10, 2, 1);
+		grid.add(debugBox, 1, 11, 2, 1);
+		grid.add(UIFactory.attachTextFieldToSlider(readThreadsSlider), 2, 2, 1, 1);
+		grid.add(UIFactory.attachTextFieldToSlider(processThreadsSlider), 2, 3, 1, 1);
+		grid.add(UIFactory.attachTextFieldToSlider(writeThreadsSlider), 2, 4, 1, 1);
+		grid.add(UIFactory.attachTextFieldToSlider(maxLoadedFilesSlider), 2, 5, 1, 1);
 
 		getDialogPane().setContent(grid);
 	}
@@ -213,9 +242,11 @@ public class SettingsDialog extends Dialog<SettingsDialog.Result> {
 		private final boolean shade;
 		private final boolean debug;
 		private final Locale locale;
+		private final CompressionType chunkCompressionType;
 
-		public Result(Locale locale, int readThreads, int processThreads, int writeThreads, int maxLoadedFiles, Color regionColor, Color chunkColor, Color pasteColor, boolean shade, boolean shadeWater, boolean debug) {
+		public Result(Locale locale, CompressionType chunkCompressionType, int readThreads, int processThreads, int writeThreads, int maxLoadedFiles, Color regionColor, Color chunkColor, Color pasteColor, boolean shade, boolean shadeWater, boolean debug) {
 			this.locale = locale;
+			this.chunkCompressionType = chunkCompressionType;
 			this.readThreads = readThreads;
 			this.processThreads = processThreads;
 			this.writeThreads = writeThreads;
@@ -270,6 +301,10 @@ public class SettingsDialog extends Dialog<SettingsDialog.Result> {
 
 		public boolean getDebug() {
 			return debug;
+		}
+
+		public CompressionType getChunkCompressionType() {
+			return chunkCompressionType;
 		}
 	}
 }

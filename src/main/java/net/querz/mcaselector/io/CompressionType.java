@@ -4,7 +4,12 @@ public enum CompressionType {
 
 	NONE(0), // indicates that there is no data present
 	GZIP(1),
-	ZLIB(2);
+	ZLIB(2),
+	LZ4(126);
+
+	/*
+
+	 */
 
 	private final byte type;
 

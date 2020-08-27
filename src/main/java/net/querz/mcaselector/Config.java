@@ -1,5 +1,6 @@
 package net.querz.mcaselector;
 
+import net.querz.mcaselector.io.CompressionType;
 import net.querz.mcaselector.tiles.Tile;
 import net.querz.mcaselector.ui.Color;
 import net.querz.mcaselector.debug.Debug;
@@ -111,6 +112,7 @@ public final class Config {
 	private static Color regionSelectionColor = DEFAULT_REGION_SELECTION_COLOR;
 	private static Color chunkSelectionColor = DEFAULT_CHUNK_SELECTION_COLOR;
 	private static Color pasteChunksColor = DEFAULT_PASTE_CHUNKS_COLOR;
+	private static CompressionType defaultChunkCompressionType = CompressionType.ZLIB;
 	private static int loadThreads = DEFAULT_LOAD_THREADS;
 	private static int processThreads = DEFAULT_PROCESS_THREADS;
 	private static int writeThreads = DEFAULT_WRITE_THREADS;
@@ -264,6 +266,13 @@ public final class Config {
 			regionSelectionColor = new Color(config.getOrDefault("RegionSelectionColor", DEFAULT_REGION_SELECTION_COLOR.toString()));
 			chunkSelectionColor = new Color(config.getOrDefault("ChunkSelectionColor", DEFAULT_CHUNK_SELECTION_COLOR.toString()));
 			pasteChunksColor = new Color(config.getOrDefault("PasteChunksColor", DEFAULT_PASTE_CHUNKS_COLOR.toString()));
+
+			try {
+				defaultChunkCompressionType = CompressionType.valueOf(config.getOrDefault("DefaultChunkCompressionType", CompressionType.ZLIB.name()));
+			} catch(IllegalArgumentException ex) {
+				defaultChunkCompressionType = CompressionType.ZLIB;
+			}
+
 			loadThreads = Integer.parseInt(config.getOrDefault("LoadThreads", DEFAULT_LOAD_THREADS + ""));
 			processThreads = Integer.parseInt(config.getOrDefault("ProcessThreads", DEFAULT_PROCESS_THREADS + ""));
 			writeThreads = Integer.parseInt(config.getOrDefault("WriteThreads", DEFAULT_WRITE_THREADS + ""));
@@ -291,6 +300,7 @@ public final class Config {
 		addSettingsLine("RegionSelectionColor", regionSelectionColor.toString(), DEFAULT_REGION_SELECTION_COLOR.toString(), lines);
 		addSettingsLine("ChunkSelectionColor", chunkSelectionColor.toString(), DEFAULT_CHUNK_SELECTION_COLOR.toString(), lines);
 		addSettingsLine("PasteChunksColor", pasteChunksColor.toString(), DEFAULT_PASTE_CHUNKS_COLOR.toString(), lines);
+		addSettingsLine("DefaultChunkCompressionType", defaultChunkCompressionType.name(), CompressionType.ZLIB.name(), lines);
 		addSettingsLine("LoadThreads", loadThreads, DEFAULT_LOAD_THREADS, lines);
 		addSettingsLine("ProcessThreads", processThreads, DEFAULT_PROCESS_THREADS, lines);
 		addSettingsLine("WriteThreads", writeThreads, DEFAULT_WRITE_THREADS, lines);
@@ -331,6 +341,14 @@ public final class Config {
 
 	public static void setPasteChunksColor(Color pasteChunksColor) {
 		Config.pasteChunksColor = pasteChunksColor;
+	}
+
+	public static CompressionType getDefaultChunkCompressionType() {
+		return defaultChunkCompressionType;
+	}
+
+	public static void setDefaultChunkCompressionType(CompressionType defaultChunkCompressionType) {
+		Config.defaultChunkCompressionType = defaultChunkCompressionType;
 	}
 
 	public static int getLoadThreads() {

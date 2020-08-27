@@ -56,6 +56,7 @@ public enum Translation {
 	MENU_TOOLS_SWAP_CHUNKS("menu.tools.swap_chunks"),
 	DIALOG_SETTINGS_TITLE("dialog.settings.title"),
 	DIALOG_SETTINGS_LANGUAGE("dialog.settings.language"),
+	DIALOG_SETTINGS_CHUNK_COMPRESSION("dialog.settings.chunk_compression"),
 	DIALOG_SETTINGS_READ_THREADS("dialog.settings.read_threads"),
 	DIALOG_SETTINGS_PROCESS_THREADS("dialog.settings.process_threads"),
 	DIALOG_SETTINGS_WRITE_THREADS("dialog.settings.write_threads"),
